@@ -1,0 +1,42 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    - cron: '45 16 * * 6'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Fork
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Upstream
+        run: git remote add upstream https://github.com/smallstep/certificates.git
+
+      - name: Fetch Upstream
+        run: git fetch upstream --tags
+
+      - name: Reset to Upstream + re-apply local .github
+        run: |
+          cp -a .github /tmp/.github-local
+
+          git checkout master
+          git reset --hard upstream/master
+
+          rm -rf .github
+          cp -a /tmp/.github-local .github
+          git add .github
+
+          git commit -m "ci: custom workflows" || true
+          git push --force origin master
+          git push origin --tags
